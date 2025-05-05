@@ -1,77 +1,69 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+'use client'
+import React, { useState } from 'react';
 
 export default function UploadPage() {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState('');
   const [error, setError] = useState('');
-  const router = useRouter();
 
   const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+    setSelectedFile(e.target.files[0]);
+    setOcrResult('');
+    setError('');
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
-
-    setLoading(true);
-    setError('');
+    if (!selectedFile) {
+      setError('Lütfen bir dosya seçin.');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', selectedFile);
 
     try {
-      const response = await fetch('http://localhost:8000/ocr/', {
+      const response = await fetch('http://127.0.0.1:8000/ocr', {
         method: 'POST',
         body: formData,
       });
 
       const data = await response.json();
-
       if (response.ok) {
-        const ocrText = data.recognized_text;
-        router.push(`/translate?text=${encodeURIComponent(ocrText)}`);
+        setOcrResult(data.text);
       } else {
-        throw new Error(data.detail || 'OCR başarısız.');
+        setError(data.error || 'OCR hatası.');
       }
     } catch (err) {
-      setError(err.message || 'Bir hata oluştu.');
-    } finally {
-      setLoading(false);
+      setError('Sunucuya bağlanırken hata oluştu.');
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6">
-      <h1 className="text-2xl font-bold mb-4">📸 Fotoğraf Yükle ve Önizle</h1>
-
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
+      <h1 className="text-2xl font-bold mb-4">Görselden Yazı Tanı</h1>
       <input
         type="file"
         accept="image/*"
         onChange={handleFileChange}
-        className="mb-4"
+        className="mb-4 text-black"
       />
-
-      {previewUrl && (
-        <img src={previewUrl} alt="Önizleme" className="w-64 h-auto rounded mb-4 shadow" />
-      )}
-
       <button
         onClick={handleUpload}
-        disabled={loading || !selectedFile}
-        className="bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition"
+        className="bg-blue-500 text-white px-4 py-2 rounded"
       >
-        {loading ? 'Yükleniyor...' : 'OCR Yap'}
+        Yükle ve Tara
       </button>
 
-      {error && <p className="text-red-500 mt-4">{error}</p>}
+      {ocrResult && (
+        <div className="mt-6 w-full max-w-xl bg-gray-800 p-4 rounded">
+          <h2 className="font-semibold text-lg mb-2">Tanınan Metin:</h2>
+          <pre className="whitespace-pre-wrap">{ocrResult}</pre>
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-4 text-red-500">{error}</p>
+      )}
     </div>
   );
 }
